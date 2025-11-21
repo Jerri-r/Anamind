@@ -1,0 +1,732 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sortable and Filterable Table - 微信聊天记录分析</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <style>
+        /* 表格样式 */
+        .table-container {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+        
+        .table-controls {
+            padding: 20px;
+            background: #f8f9fa;
+            border-bottom: 1px solid #e9ecef;
+        }
+        
+        .search-input {
+            width: 100%;
+            padding: 12px 16px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 14px;
+            margin-bottom: 15px;
+        }
+        
+        .search-input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        
+        .search-button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.2s ease;
+            margin-left: 10px;
+            min-width: 80px;
+        }
+        
+        .search-button:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+        }
+        
+        .search-button:active {
+            transform: translateY(0);
+        }
+        
+        .search-input-container {
+            display: flex;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        
+        .filter-chips {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 15px;
+        }
+        
+        .filter-chip {
+            background: #e9ecef;
+            color: #495057;
+            padding: 4px 12px;
+            border-radius: 16px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border: 1px solid transparent;
+        }
+        
+        .filter-chip:hover {
+            background: #dee2e6;
+        }
+        
+        .filter-chip.active {
+            background: #667eea;
+            color: white;
+            border-color: #5a6fd8;
+        }
+        
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+        }
+        
+        .data-table th {
+            background: #f8f9fa;
+            padding: 16px;
+            text-align: left;
+            font-weight: 600;
+            color: #495057;
+            border-bottom: 2px solid #e9ecef;
+            cursor: pointer;
+            user-select: none;
+            transition: background-color 0.2s ease;
+        }
+        
+        .data-table th:hover {
+            background: #e9ecef;
+        }
+        
+        .data-table th.sortable:after {
+            content: ' ↕';
+            opacity: 0.3;
+            font-size: 12px;
+        }
+        
+        .data-table th.sort-asc:after {
+            content: ' ↑';
+            opacity: 1;
+            color: #667eea;
+        }
+        
+        .data-table th.sort-desc:after {
+            content: ' ↓';
+            opacity: 1;
+            color: #667eea;
+        }
+        
+        .data-table td {
+            padding: 16px;
+            border-bottom: 1px solid #e9ecef;
+            vertical-align: top;
+        }
+        
+        .data-table tr:hover {
+            background: #f8f9fa;
+        }
+        
+        .customer-name {
+            font-weight: 600;
+            color: #2c3e50;
+        }
+        
+        .numeric-cell {
+            text-align: right;
+            font-family: 'Courier New', monospace;
+            font-weight: 500;
+        }
+        
+        .amount-cell {
+            color: #28a745;
+            font-weight: 600;
+        }
+        
+        .tag-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px;
+        }
+        
+        .tag {
+            background: #e3f2fd;
+            color: #1976d2;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 500;
+        }
+        
+        .tag.date-label {
+            background: #f3e5f5;
+            color: #7b1fa2;
+        }
+        
+        .tag.time-label {
+            background: #e8f5e8;
+            color: #388e3c;
+        }
+        
+        .tag.behaviour-label {
+            background: #fff3e0;
+            color: #f57c00;
+        }
+        
+        .tag.rfm-label {
+            background: #fce4ec;
+            color: #c2185b;
+        }
+        
+        .tag.lifecycle-label {
+            background: #e0f2f1;
+            color: #00796b;
+        }
+        
+        .tag.custom-label {
+            background: #f3e5f5;
+            color: #7b1fa2;
+            cursor: pointer;
+            position: relative;
+            transition: all 0.2s ease;
+        }
+        
+        .tag.custom-label:hover {
+            background: #ce93d8;
+            color: white;
+            transform: scale(1.05);
+        }
+        
+        .tag.custom-label .delete-btn {
+            margin-left: 6px;
+            color: #7b1fa2;
+            cursor: pointer;
+            font-size: 10px;
+            padding: 1px 4px;
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.7);
+        }
+        
+        .tag.custom-label:hover .delete-btn {
+            background: rgba(255, 255, 255, 0.9);
+            color: #7b1fa2;
+        }
+        
+        .add-label-btn {
+            background: none;
+            border: 1px dashed #7b1fa2;
+            color: #7b1fa2;
+            padding: 2px 6px;
+            border-radius: 12px;
+            font-size: 10px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            margin: 2px;
+        }
+        
+        .add-label-btn:hover {
+            background: #f3e5f5;
+            border-style: solid;
+        }
+        
+        .no-data-row {
+            text-align: center;
+            padding: 40px;
+            color: #6c757d;
+            font-style: italic;
+        }
+        
+        .table-info {
+            padding: 16px 20px;
+            background: #f8f9fa;
+            border-top: 1px solid #e9ecef;
+            font-size: 12px;
+            color: #6c757d;
+            display: flex;
+            justify-content: between;
+            align-items: center;
+        }
+        
+        .table-stats {
+            margin-left: auto;
+        }
+        
+        .loading-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(255, 255, 255, 0.8);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+        
+        .loading-spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- 左侧导航栏 -->
+        <nav class="sidebar">
+            <h2>功能导航</h2>
+            <div class="nav-buttons">
+                <a href="/data_import" class="nav-btn">Data Import</a>
+                <a href="/dashboard" class="nav-btn">Individual Customer Visualization Dashboards</a>
+                <a href="/table" class="nav-btn active">Sortable and Filterable Table</a>
+            </div>
+        </nav>
+        
+        <!-- 右侧内容区域 -->
+        <main class="content">
+            <div class="page-header">
+                <h1>Sortable and Filterable Table</h1>
+                <p>完整的客户数据分析表格，支持排序和关键词筛选</p>
+            </div>
+            
+            <div class="table-container">
+                <div class="table-controls">
+                    <div class="search-input-container">
+                        <input type="text" 
+                               id="searchInput" 
+                               class="search-input" 
+                               placeholder="搜索客户姓名或标签关键词（支持多个关键词，用空格分隔）...">
+                        <button id="searchButton" class="search-button" onclick="handleSearchButtonClick()">
+                            搜索
+                        </button>
+                    </div>
+                    
+                    <div id="filterChips" class="filter-chips"></div>
+                </div>
+                
+                <div class="table-wrapper" style="position: relative;">
+                    <div id="loadingOverlay" class="loading-overlay" style="display: none;">
+                        <div class="loading-spinner"></div>
+                    </div>
+                    
+                    <table id="dataTable" class="data-table">
+                        <thead>
+                            <tr>
+                                <th class="sortable" data-column="customer_name">客户姓名</th>
+                                <th class="sortable numeric" data-column="chat_days">总聊天天数</th>
+                                <th class="sortable numeric" data-column="total_messages">总聊天条数</th>
+                                <th class="sortable numeric" data-column="transfer_amount">总购买金额</th>
+                                <th data-column="basic_labels">基础标签</th>
+                                <th data-column="rfm_labels">RFM标签</th>
+                                <th data-column="lifecycle_labels">生命周期标签</th>
+                                <th data-column="custom_labels">自定义标签</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tableBody">
+                            <tr class="no-data-row">
+                                <td colspan="8">正在加载数据...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                
+                <div class="table-info">
+                    <span id="recordCount">0 条记录</span>
+                    <span class="table-stats">
+                        <span id="filteredCount">显示 0 条</span> / 
+                        <span id="totalCount">总共 0 条</span>
+                    </span>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        let allData = [];
+        let filteredData = [];
+        let sortColumn = null;
+        let sortDirection = 'asc';
+        let activeFilters = new Set();
+
+        // 页面加载时初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            loadTableData();
+            initializeEventListeners();
+        });
+
+        // 初始化事件监听器
+        function initializeEventListeners() {
+            // 搜索输入
+            document.getElementById('searchInput').addEventListener('input', debounce(handleSearch, 300));
+            
+            // 表头排序
+            document.querySelectorAll('th.sortable').forEach(th => {
+                th.addEventListener('click', () => handleSort(th.dataset.column));
+            });
+        }
+
+        // 加载表格数据
+        async function loadTableData() {
+            try {
+                showLoading();
+                const response = await fetch('/api/table_data');
+                const data = await response.json();
+                
+                allData = data;
+                filteredData = [...allData];
+                
+                renderTable();
+                updateFilterChips();
+                hideLoading();
+            } catch (error) {
+                console.error('加载表格数据失败:', error);
+                document.getElementById('tableBody').innerHTML = 
+                    '<tr class="no-data-row"><td colspan="7">加载失败，请检查网络连接</td></tr>';
+                hideLoading();
+            }
+        }
+
+        // 渲染表格
+        function renderTable() {
+            const tbody = document.getElementById('tableBody');
+            
+            if (filteredData.length === 0) {
+                tbody.innerHTML = '<tr class="no-data-row"><td colspan="8">没有找到匹配的记录</td></tr>';
+                updateRecordCount();
+                return;
+            }
+
+            let html = '';
+            filteredData.forEach(row => {
+                html += `
+                    <tr>
+                        <td class="customer-name">${escapeHtml(row.customer_name)}</td>
+                        <td class="numeric-cell">${row.chat_days}</td>
+                        <td class="numeric-cell">${row.total_messages}</td>
+                        <td class="numeric-cell amount-cell">￥${row.transfer_amount.toFixed(2)}</td>
+                        <td>${renderTags(row.basic_labels, 'basic')}</td>
+                        <td>${renderTags(row.rfm_labels, 'rfm')}</td>
+                        <td>${renderTags(row.lifecycle_labels, 'lifecycle')}</td>
+                        <td>${renderCustomTags(row.customer_name, row.custom_labels || [])}</td>
+                    </tr>
+                `;
+            });
+            
+            tbody.innerHTML = html;
+            updateRecordCount();
+        }
+
+        // 渲染标签
+        function renderTags(labels, type) {
+            if (!labels || labels.length === 0) {
+                return '<span style="color: #6c757d; font-style: italic;">无标签</span>';
+            }
+
+            let tagClass = 'tag';
+            if (type === 'rfm') tagClass += ' rfm-label';
+            else if (type === 'lifecycle') tagClass += ' lifecycle-label';
+            else if (type === 'basic') tagClass += ' date-label';
+
+            return `<div class="tag-container">
+                ${labels.map(label => `<span class="${tagClass}">${escapeHtml(label)}</span>`).join('')}
+            </div>`;
+        }
+
+        // 渲染自定义标签
+        function renderCustomTags(customerName, labels) {
+            return `<div class="tag-container">
+                ${labels.map(label => `
+                    <span class="tag custom-label" title="点击删除">
+                        ${escapeHtml(label)}
+                        <span class="delete-btn" onclick="deleteCustomLabel('${escapeHtml(customerName)}', '${escapeHtml(label)}')">✕</span>
+                    </span>
+                `).join('')}
+                <button class="add-label-btn" onclick="addCustomLabel('${escapeHtml(customerName)}')">+</button>
+            </div>`;
+        }
+
+        // 添加自定义标签
+        async function addCustomLabel(customerName) {
+            const label = prompt(`为客户 "${customerName}" 添加自定义标签:`);
+            if (!label || !label.trim()) return;
+
+            try {
+                const response = await fetch(`/api/custom_labels/${encodeURIComponent(customerName)}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ label: label.trim() })
+                });
+
+                if (response.ok) {
+                    // 刷新数据
+                    loadTableData();
+                    showNotification(`已为 ${customerName} 添加标签: ${label.trim()}`, 'success');
+                } else {
+                    const error = await response.json();
+                    showNotification(`添加标签失败: ${error.error}`, 'error');
+                }
+            } catch (error) {
+                showNotification('添加标签失败，请检查网络连接', 'error');
+            }
+        }
+
+        // 删除自定义标签
+        async function deleteCustomLabel(customerName, label) {
+            if (!confirm(`确定要为客户 "${customerName}" 删除标签 "${label}" 吗？`)) return;
+
+            try {
+                const response = await fetch(`/api/custom_labels/${encodeURIComponent(customerName)}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ label: label })
+                });
+
+                if (response.ok) {
+                    // 刷新数据
+                    loadTableData();
+                    showNotification(`已为 ${customerName} 删除标签: ${label}`, 'success');
+                } else {
+                    const error = await response.json();
+                    showNotification(`删除标签失败: ${error.error}`, 'error');
+                }
+            } catch (error) {
+                showNotification('删除标签失败，请检查网络连接', 'error');
+            }
+        }
+
+        // 显示通知
+        function showNotification(message, type = 'info') {
+            // 创建通知元素
+            const notification = document.createElement('div');
+            notification.className = `notification ${type}`;
+            notification.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                padding: 12px 20px;
+                border-radius: 8px;
+                color: white;
+                font-size: 14px;
+                z-index: 10000;
+                max-width: 300px;
+                word-wrap: break-word;
+                opacity: 0;
+                transform: translateX(100%);
+                transition: all 0.3s ease;
+                ${type === 'success' ? 'background: #28a745;' : 
+                  type === 'error' ? 'background: #dc3545;' : 
+                  'background: #17a2b8;'}
+            `;
+            
+            notification.textContent = message;
+            document.body.appendChild(notification);
+
+            // 显示动画
+            setTimeout(() => {
+                notification.style.opacity = '1';
+                notification.style.transform = 'translateX(0)';
+            }, 100);
+
+            // 自动隐藏
+            setTimeout(() => {
+                notification.style.opacity = '0';
+                notification.style.transform = 'translateX(100%)';
+                setTimeout(() => {
+                    document.body.removeChild(notification);
+                }, 300);
+            }, 3000);
+        }
+
+        // 处理搜索
+        function handleSearch(event) {
+            const searchTerm = event.target.value.toLowerCase().trim();
+            
+            if (!searchTerm) {
+                filteredData = [...allData];
+                activeFilters.clear();
+            } else {
+                const keywords = searchTerm.split(/\s+/).filter(keyword => keyword.length > 0);
+                activeFilters = new Set(keywords);
+                
+                filteredData = allData.filter(row => {
+                    const searchableText = [
+                        row.customer_name,
+                        ...(row.basic_labels || []),
+                        ...(row.rfm_labels || []),
+                        ...(row.lifecycle_labels || []),
+                        ...(row.custom_labels || [])
+                    ].join(' ').toLowerCase();
+                    
+                    return keywords.every(keyword => searchableText.includes(keyword));
+                });
+            }
+            
+            updateFilterChips();
+            renderTable();
+        }
+
+        // 处理搜索按钮点击
+        function handleSearchButtonClick() {
+            const searchInput = document.getElementById('searchInput');
+            const searchTerm = searchInput.value.toLowerCase().trim();
+            
+            if (!searchTerm) {
+                filteredData = [...allData];
+                activeFilters.clear();
+            } else {
+                const keywords = searchTerm.split(/\s+/).filter(keyword => keyword.length > 0);
+                activeFilters = new Set(keywords);
+                
+                filteredData = allData.filter(row => {
+                    const searchableText = [
+                        row.customer_name,
+                        ...(row.basic_labels || []),
+                        ...(row.rfm_labels || []),
+                        ...(row.lifecycle_labels || []),
+                        ...(row.custom_labels || [])
+                    ].join(' ').toLowerCase();
+                    
+                    return keywords.every(keyword => searchableText.includes(keyword));
+                });
+            }
+            
+            updateFilterChips();
+            renderTable();
+        }
+
+        // 处理排序
+        function handleSort(column) {
+            const headers = document.querySelectorAll('th.sortable');
+            headers.forEach(h => h.classList.remove('sort-asc', 'sort-desc'));
+            
+            if (sortColumn === column) {
+                sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
+            } else {
+                sortColumn = column;
+                sortDirection = 'asc';
+            }
+            
+            const currentHeader = document.querySelector(`th[data-column="${column}"]`);
+            currentHeader.classList.add(sortDirection === 'asc' ? 'sort-asc' : 'sort-desc');
+            
+            sortData();
+            renderTable();
+        }
+
+        // 排序数据
+        function sortData() {
+            if (!sortColumn) return;
+            
+            filteredData.sort((a, b) => {
+                let aVal = a[sortColumn];
+                let bVal = b[sortColumn];
+                
+                // 处理数组和字符串的排序
+                if (Array.isArray(aVal)) aVal = aVal.join(', ');
+                if (Array.isArray(bVal)) bVal = bVal.join(', ');
+                
+                // 处理数字排序
+                if (typeof aVal === 'number' && typeof bVal === 'number') {
+                    return sortDirection === 'asc' ? aVal - bVal : bVal - aVal;
+                }
+                
+                // 处理字符串排序
+                aVal = String(aVal).toLowerCase();
+                bVal = String(bVal).toLowerCase();
+                
+                if (sortDirection === 'asc') {
+                    return aVal < bVal ? -1 : aVal > bVal ? 1 : 0;
+                } else {
+                    return aVal > bVal ? -1 : aVal < bVal ? 1 : 0;
+                }
+            });
+        }
+
+        // 更新过滤标签
+        function updateFilterChips() {
+            const container = document.getElementById('filterChips');
+            container.innerHTML = '';
+            
+            if (activeFilters.size === 0) return;
+            
+            activeFilters.forEach(filter => {
+                const chip = document.createElement('div');
+                chip.className = 'filter-chip active';
+                chip.textContent = filter;
+                chip.onclick = () => removeFilter(filter);
+                container.appendChild(chip);
+            });
+        }
+
+        // 移除过滤条件
+        function removeFilter(filter) {
+            activeFilters.delete(filter);
+            document.getElementById('searchInput').value = Array.from(activeFilters).join(' ');
+            handleSearch({ target: { value: document.getElementById('searchInput').value } });
+        }
+
+        // 更新记录数量
+        function updateRecordCount() {
+            document.getElementById('recordCount').textContent = `${filteredData.length} 条记录`;
+            document.getElementById('filteredCount').textContent = `显示 ${filteredData.length} 条`;
+            document.getElementById('totalCount').textContent = `总共 ${allData.length} 条`;
+        }
+
+        // 显示/隐藏加载动画
+        function showLoading() {
+            document.getElementById('loadingOverlay').style.display = 'flex';
+        }
+
+        function hideLoading() {
+            document.getElementById('loadingOverlay').style.display = 'none';
+        }
+
+        // HTML转义
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // 防抖函数
+        function debounce(func, wait) {
+            let timeout;
+            return function executedFunction(...args) {
+                const later = () => {
+                    clearTimeout(timeout);
+                    func(...args);
+                };
+                clearTimeout(timeout);
+                timeout = setTimeout(later, wait);
+            };
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>微信聊天记录分析</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <!-- 左侧导航栏 -->
+        <nav class="sidebar">
+            <h2>功能导航</h2>
+            <div class="nav-buttons">
+                <a href="/data_import" class="nav-btn">Data Import</a>
+                <a href="/dashboard" class="nav-btn">Individual Customer Visualization Dashboards</a>
+                <a href="/table" class="nav-btn">Sortable and Filterable Table</a>
+            </div>
+        </nav>
+        
+        <!-- 右侧内容区域 -->
+        <main class="content">
+            <div class="welcome">
+                <h1>微信聊天记录分析系统</h1>
+                <p>请选择左侧功能开始使用</p>
+            </div>
+        </main>
+    </div>
+</body>
+</html>

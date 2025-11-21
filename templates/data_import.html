@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Data Import - 微信聊天记录分析</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <style>
+        .upload-section {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+        
+        .upload-area {
+            border: 2px dashed #ddd;
+            border-radius: 8px;
+            padding: 40px;
+            margin: 20px 0;
+            background: #fafafa;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .upload-area:hover {
+            border-color: #667eea;
+            background: #f0f4ff;
+        }
+        
+        .upload-area.dragover {
+            border-color: #667eea;
+            background: #e8efff;
+        }
+        
+        .file-input {
+            display: none;
+        }
+        
+        .upload-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: transform 0.2s ease;
+        }
+        
+        .upload-btn:hover {
+            transform: translateY(-2px);
+        }
+        
+        .file-list {
+            margin: 20px 0;
+            text-align: left;
+        }
+        
+        .file-item {
+            background: white;
+            padding: 10px 15px;
+            margin: 5px 0;
+            border-radius: 5px;
+            border: 1px solid #ddd;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .history-section {
+            margin-top: 40px;
+        }
+        
+        .history-table {
+            width: 100%;
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .history-table th,
+        .history-table td {
+            padding: 12px 15px;
+            text-align: left;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .history-table th {
+            background: #f8f9fa;
+            font-weight: 600;
+            color: #333;
+        }
+        
+        .delete-btn {
+            background: #ff4757;
+            color: white;
+            border: none;
+            padding: 5px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+        
+        .delete-btn:hover {
+            background: #ff3838;
+        }
+        
+        .samples-section {
+            margin-top: 40px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
+        
+        .sample-files {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+            margin-top: 15px;
+        }
+        
+        .sample-file {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #ddd;
+            text-align: center;
+            min-width: 150px;
+        }
+        
+        .sample-file h4 {
+            margin: 0 0 10px 0;
+            color: #333;
+        }
+        
+        .sample-file p {
+            margin: 5px 0;
+            color: #666;
+            font-size: 12px;
+        }
+        
+        .download-status {
+            font-size: 10px;
+            margin-top: 5px;
+            color: #28a745;
+            display: none;
+        }
+        
+        .processing-message {
+            display: none;
+            text-align: center;
+            padding: 20px;
+            background: #e8f5e8;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+        
+        .error-message {
+            background: #ffe8e8;
+            color: #d00;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+        
+        .success-message {
+            background: #e8f5e8;
+            color: #0a0;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- 左侧导航栏 -->
+        <nav class="sidebar">
+            <h2>功能导航</h2>
+            <div class="nav-buttons">
+                <a href="/data_import" class="nav-btn active">Data Import</a>
+                <a href="/dashboard" class="nav-btn">Individual Customer Visualization Dashboards</a>
+                <a href="/table" class="nav-btn">Sortable and Filterable Table</a>
+            </div>
+        </nav>
+        
+        <!-- 右侧内容区域 -->
+        <main class="content">
+            <div class="page-header">
+                <h1>Data Import</h1>
+            </div>
+            
+            <!-- 文件上传区域 -->
+            <div class="upload-section">
+                <h3>上传聊天记录文件</h3>
+                <p>支持 PDF、TXT、HTML 格式文件</p>
+                
+                <div class="upload-area" id="uploadArea">
+                    <div>
+                        <p>📁 拖拽文件到此处或点击选择文件</p>
+                        <p style="font-size: 12px; color: #666; margin-top: 10px;">
+                            支持多文件同时上传
+                        </p>
+                    </div>
+                    <input type="file" id="fileInput" class="file-input" 
+                           multiple accept=".txt,.pdf,.html,.htm">
+                </div>
+                
+                <button class="upload-btn" id="selectFileBtn" onclick="document.getElementById('fileInput').click()">
+                    选择文件
+                </button>
+                
+                <div id="fileList" class="file-list"></div>
+                
+                <button class="upload-btn" id="uploadFilesBtn" style="display: none; background: #28a745; margin-top: 15px;" onclick="uploadFiles()">
+                    开始上传
+                </button>
+                
+                <div id="processingMessage" class="processing-message">
+                    <p>🔄 正在处理文件，请稍候...</p>
+                </div>
+                
+                <div id="resultMessage"></div>
+            </div>
+            
+            <!-- 上传历史 -->
+            <div class="history-section">
+                <h3>上传历史</h3>
+                <table class="history-table">
+                    <thead>
+                        <tr>
+                            <th>文件名</th>
+                            <th>文件类型</th>
+                            <th>上传时间</th>
+                            <th>消息数量</th>
+                            <th>状态</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody id="historyTableBody">
+                        <tr>
+                            <td colspan="6" style="text-align: center; color: #666;">
+                                暂无上传记录
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            
+            <!-- 样本数据 -->
+            <div class="samples-section">
+                <h3>样本数据库</h3>
+                
+                <div class="sample-files">
+                    <div class="sample-file">
+                        <h4>📄 样本1 (TXT)</h4>
+                        <p>高端护肤品长周期销售对话</p>
+                        <p>5个客户 • 200+条消息 • 4个月跨度</p>
+                        <p>包含高频/低频/流失客户等模式</p>
+                        <button class="upload-btn" style="font-size: 12px; padding: 8px 15px;" 
+                                onclick="downloadSample('txt')">
+                            下载样本
+                        </button>
+                        <div class="download-status" id="download-status-txt">✅ 下载成功</div>
+                    </div>
+                    
+                    <div class="sample-file">
+                        <h4>📋 样本2 (PDF)</h4>
+                        <p>彩妆销售对话</p>
+                        <p>67条消息</p>
+                        <button class="upload-btn" style="font-size: 12px; padding: 8px 15px;" 
+                                onclick="downloadSample('pdf')">
+                            下载样本
+                        </button>
+                        <div class="download-status" id="download-status-pdf">✅ 下载成功</div>
+                    </div>
+                    
+                    <div class="sample-file">
+                        <h4>🌐 样本3 (HTML)</h4>
+                        <p>彩妆销售多样化对话</p>
+                        <p>5个客户 • 150+条消息 • 3个月跨度</p>
+                        <p>含彩妆达人/学生党/白领等类型</p>
+                        <button class="upload-btn" style="font-size: 12px; padding: 8px 15px;" 
+                                onclick="downloadSample('html')">
+                            下载样本
+                        </button>
+                        <div class="download-status" id="download-status-html">✅ 下载成功</div>
+                    </div>
+                    
+
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        let selectedFiles = [];
+
+        // 文件上传区域事件
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInput = document.getElementById('fileInput');
+        const fileList = document.getElementById('fileList');
+        const processingMessage = document.getElementById('processingMessage');
+        const resultMessage = document.getElementById('resultMessage');
+
+        // 点击上传区域
+        uploadArea.addEventListener('click', () => {
+            fileInput.click();
+        });
+
+        // 拖拽事件
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        });
+
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('dragover');
+        });
+
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            handleFiles(e.dataTransfer.files);
+        });
+
+        // 文件选择事件
+        fileInput.addEventListener('change', (e) => {
+            handleFiles(e.target.files);
+        });
+
+        // 处理文件
+        function handleFiles(files) {
+            selectedFiles = Array.from(files).filter(file => {
+                const ext = file.name.split('.').pop().toLowerCase();
+                return ['txt', 'pdf', 'html', 'htm'].includes(ext);
+            });
+
+            displayFileList();
+        }
+
+        // 显示文件列表
+        function displayFileList() {
+            if (selectedFiles.length === 0) {
+                fileList.innerHTML = '';
+                updateUploadButton();
+                return;
+            }
+
+            let html = '<h4>已选择文件：</h4>';
+            selectedFiles.forEach((file, index) => {
+                html += `
+                    <div class="file-item">
+                        <span>📄 ${file.name} (${(file.size / 1024).toFixed(1)} KB)</span>
+                        <button onclick="removeFile(${index})" style="background: #ff6b6b; color: white; border: none; padding: 2px 8px; border-radius: 3px; cursor: pointer;">删除</button>
+                    </div>
+                `;
+            });
+            fileList.innerHTML = html;
+            updateUploadButton();
+        }
+
+        // 移除文件
+        function removeFile(index) {
+            selectedFiles.splice(index, 1);
+            displayFileList();
+        }
+
+        // 更新上传按钮状态
+        function updateUploadButton() {
+            const selectBtn = document.getElementById('selectFileBtn');
+            const uploadBtn = document.getElementById('uploadFilesBtn');
+            
+            if (selectedFiles.length > 0) {
+                if (selectBtn) {
+                    selectBtn.textContent = `已选择 ${selectedFiles.length} 个文件`;
+                    selectBtn.onclick = () => document.getElementById('fileInput').click();
+                }
+                if (uploadBtn) {
+                    uploadBtn.style.display = 'inline-block';
+                }
+            } else {
+                if (selectBtn) {
+                    selectBtn.textContent = '选择文件';
+                    selectBtn.onclick = () => document.getElementById('fileInput').click();
+                }
+                if (uploadBtn) {
+                    uploadBtn.style.display = 'none';
+                }
+            }
+        }
+
+        function uploadFiles() {
+            if (selectedFiles.length === 0) {
+                alert('请先选择文件');
+                return;
+            }
+
+            const formData = new FormData();
+            selectedFiles.forEach(file => {
+                formData.append('files', file);
+            });
+
+            processingMessage.style.display = 'block';
+            resultMessage.innerHTML = '';
+
+            fetch('/upload', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                processingMessage.style.display = 'none';
+                
+                if (data.results) {
+                    let html = '';
+                    data.results.forEach(result => {
+                        if (result.status === 'success') {
+                            html += `<div class="success-message">✅ ${result.filename} - 成功处理 ${result.message_count} 条消息</div>`;
+                        } else {
+                            html += `<div class="error-message">❌ ${result.filename} - 处理失败: ${result.error}</div>`;
+                        }
+                    });
+                    resultMessage.innerHTML = html;
+                }
+                
+                // 清空文件列表
+                selectedFiles = [];
+                displayFileList();
+                fileInput.value = '';
+                
+                // 刷新上传历史
+                loadUploadHistory();
+            })
+            .catch(error => {
+                processingMessage.style.display = 'none';
+                resultMessage.innerHTML = `<div class="error-message">上传失败: ${error.message}</div>`;
+            });
+        }
+
+        // 加载上传历史
+        function loadUploadHistory() {
+            fetch('/upload_history')
+            .then(response => response.json())
+            .then(data => {
+                const tbody = document.getElementById('historyTableBody');
+                if (data.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: #666;">暂无上传记录</td></tr>';
+                    return;
+                }
+
+                let html = '';
+                data.forEach(record => {
+                    html += `
+                        <tr>
+                            <td>${record.filename}</td>
+                            <td>${record.file_type.toUpperCase()}</td>
+                            <td>${record.upload_time}</td>
+                            <td>${record.message_count}</td>
+                            <td><span style="color: #28a745;">✅ ${record.status}</span></td>
+                            <td><button class="delete-btn" onclick="deleteUpload(${record.id})">删除</button></td>
+                        </tr>
+                    `;
+                });
+                tbody.innerHTML = html;
+            });
+        }
+
+        // 删除上传记录
+        function deleteUpload(uploadId) {
+            if (confirm('确定要删除这条记录吗？这将同时删除所有相关的聊天记录。')) {
+                fetch(`/delete_upload/${uploadId}`, {
+                    method: 'DELETE'
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        loadUploadHistory();
+                    }
+                });
+            }
+        }
+
+        // 下载样本文件
+        function downloadSample(type) {
+            const sampleFiles = {
+                'txt': '/samples/sample_rich_skincare_data.txt',
+                'pdf': '/samples/sample_beauty_sales.pdf',
+                'html': '/samples/sample_rich_makeup_data.html'
+            };
+            
+            const fileUrl = sampleFiles[type];
+            const statusElement = document.getElementById(`download-status-${type}`);
+            
+            if (fileUrl) {
+                // 隐藏状态信息
+                if (statusElement) {
+                    statusElement.style.display = 'none';
+                }
+                
+                // 先检查文件是否存在
+                fetch(fileUrl, { method: 'HEAD' })
+                    .then(response => {
+                        if (response.ok) {
+                            const link = document.createElement('a');
+                            link.href = fileUrl;
+                            link.download = fileUrl.split('/').pop();
+                            document.body.appendChild(link);
+                            link.click();
+                            document.body.removeChild(link);
+                            
+                            // 显示成功状态
+                            if (statusElement) {
+                                statusElement.textContent = '✅ 下载成功';
+                                statusElement.style.color = '#28a745';
+                                statusElement.style.display = 'block';
+                            }
+                        } else {
+                            // 显示失败状态
+                            if (statusElement) {
+                                statusElement.textContent = '❌ 文件不可用';
+                                statusElement.style.color = '#dc3545';
+                                statusElement.style.display = 'block';
+                            }
+                        }
+                    })
+                    .catch(error => {
+                        console.error('下载失败:', error);
+                        // 显示错误状态
+                        if (statusElement) {
+                            statusElement.textContent = '❌ 下载失败';
+                            statusElement.style.color = '#dc3545';
+                            statusElement.style.display = 'block';
+                        }
+                    });
+            } else {
+                alert('样本文件暂不可用');
+            }
+        }
+
+        // 页面加载时获取上传历史
+        document.addEventListener('DOMContentLoaded', loadUploadHistory);
+    </script>
+</body>
+</html>

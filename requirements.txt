@@ -1,0 +1,15 @@
+Flask==2.3.3
+Werkzeug==2.3.7
+pandas==2.1.1
+numpy==1.24.3
+sqlite3
+PyPDF2==3.0.1
+beautifulsoup4==4.12.2
+python-dateutil==2.8.2
+jieba==0.42.1
+wordcloud==1.9.2
+matplotlib==3.7.2
+seaborn==0.12.2
+gunicorn==21.2.0
+Pillow==10.0.1
+requests==2.31.0
